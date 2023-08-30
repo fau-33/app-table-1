@@ -1,4 +1,4 @@
-// const { Address, Employee } = require('../models');
+const { Address, Employee } = require('../models');
 const Sequelize = require('sequelize');
 const config = require('../config/config');
 
@@ -25,11 +25,33 @@ const getById = async (id) => {
 };
 
 const insert = async ({ firstName, lastName, age, city, street, number }) => {
-  const employee = await Employee.create({ firstName, lastName, age });
+  const t = await sequelize.transaction();
 
-  await Address.create({ city, street, number, employeeId: employee.id });
+  try {
+    // Depois executamos as operações
+    const employee = await Employee.create(
+      { firstName, lastName, age },
+      { transaction: t },
+    );
 
-  return employee;
+    await Address.create(
+      { city, street, number, employeeId: employee.id },
+      { transaction: t},
+    );
+
+    // Com isso, podemos finalizar a transação usando a função `commit`.
+
+    await t.commit();
+    return employee;
+  } catch (e) {
+    // Se entrou nesse bloco é porque alguma operação falhou.
+    // Nesse caso, o sequelize irá reverter as operações anteriores com a função rollback, não sendo necessário fazer manualmente
+    await t.rollback();
+    console.log(e);
+    throw e; // Jogamos o erro para a controller tratar
+
+    
+  }
 };
 
 module.exports = {
